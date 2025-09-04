@@ -628,12 +628,21 @@ void MainWindow::setupRenderWindow()
     // 从主分割器中取出关节控制区域
     QWidget *jointControlWidget = m_mainSplitter->widget(0);
     if (jointControlWidget) {
-        m_mainSplitter->replaceWidget(0, leftSplitter);
+        // 先从主分割器中移除，但不删除
+        jointControlWidget->setParent(nullptr);
+        
+        // 添加到左侧分割器
         leftSplitter->addWidget(jointControlWidget);
         leftSplitter->addWidget(m_renderWidget);
         
+        // 将左侧分割器添加到主分割器的第一个位置
+        m_mainSplitter->insertWidget(0, leftSplitter);
+        
         // 设置左侧分割器比例 (关节控制:渲染窗口 = 3:2)
         leftSplitter->setSizes({600, 400});
+    } else {
+        // 如果没有找到关节控制区域，直接添加渲染窗口
+        m_mainSplitter->insertWidget(0, m_renderWidget);
     }
 }
 
