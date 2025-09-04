@@ -52,11 +52,11 @@ void MainWindow::setupUI()
     // 创建关节控制区域
     setupJointControls();
     
-    // 创建控制面板
-    setupControlPanel();
-    
     // 创建运动状态面板
     setupMotionStatusPanel();
+    
+    // 创建控制面板
+    setupControlPanel();
     
     // 创建日志面板
     setupLogPanel();
