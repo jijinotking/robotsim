@@ -1,0 +1,72 @@
+# Qt编译文件
+*.o
+*.so
+*.a
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+Makefile*
+*.pro.user
+*.pro.user.*
+
+# 可执行文件
+robot_control_gui
+*.exe
+
+# 临时文件
+*~
+*.tmp
+*.bak
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# IDE文件
+.vscode/
+.idea/
+*.creator
+*.creator.user
+*.includes
+*.files
+*.config
+
+# Python编译文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# 日志文件
+*.log
+
+# 系统文件
+.directory
+*.desktop
+
+# 部署包
+*.tar.gz
+*.zip
+robot_control_gui_package/
