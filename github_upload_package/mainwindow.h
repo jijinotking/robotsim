@@ -21,6 +21,12 @@
 #include <QTabWidget>
 #include <QSplitter>
 #include <QScrollArea>
+#include <QOpenGLWidget>
+#include <QGraphicsView>
+#include <QGraphicsScene>
+#include <QGraphicsTextItem>
+#include <QCheckBox>
+#include <QFrame>
 
 #include "robotcontroller.h"
 #include "jointcontrolwidget.h"
@@ -50,6 +56,7 @@ private slots:
     void onRobotStatusChanged(bool connected);
     void onJointValueChanged(int jointId, double value);
     void updateRobotStatus();
+    void toggleSimulationMode(bool enabled);  // 新增：切换仿真模式
 
 private:
     void setupUI();
@@ -59,7 +66,9 @@ private:
     void setupControlPanel();
     void setupLogPanel();
     void setupMotionStatusPanel();  // 新增：运动状态面板
+    void setupRenderWindow();       // 新增：设置渲染窗口
     void updateMotionStatusDisplay();  // 新增：更新运动状态显示
+    void updateRenderWindow();      // 新增：更新渲染窗口
     void createJointControlGroup(const QString &groupName, int startJoint, int jointCount, QWidget *parent);
     
     // UI组件
@@ -99,6 +108,16 @@ private:
     QProgressBar *m_motionProgressBar; // 运动进度
     QLabel *m_activeJointsLabel;       // 活跃关节数
     QLabel *m_motionTimeLabel;         // 运动时间
+    
+    // 渲染窗口
+    QWidget *m_renderWidget;           // 渲染窗口容器
+    QGraphicsView *m_renderView;       // 图形视图
+    QGraphicsScene *m_renderScene;     // 图形场景
+    QLabel *m_renderStatusLabel;       // 渲染状态标签
+    
+    // 仿真模式
+    QCheckBox *m_simulationModeCheckBox; // 仿真模式复选框
+    bool m_isSimulationMode;           // 仿真模式标志
     
     // 日志面板
     QTextEdit *m_logTextEdit;

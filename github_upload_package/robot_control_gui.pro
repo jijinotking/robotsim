@@ -1,4 +1,4 @@
-QT += core widgets network serialport
+QT += core widgets network serialport opengl
 
 CONFIG += c++17
 

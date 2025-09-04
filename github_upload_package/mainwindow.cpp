@@ -34,6 +34,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_statusUpdateTimer->start(100); // 100ms更新一次
     
     // 初始状态
+    m_isSimulationMode = false;  // 初始化仿真模式标志
     onRobotStatusChanged(false);
 }
 
@@ -60,6 +61,9 @@ void MainWindow::setupUI()
     
     // 创建日志面板
     setupLogPanel();
+    
+    // 创建渲染窗口
+    setupRenderWindow();
     
     // 设置布局
     QHBoxLayout *mainLayout = new QHBoxLayout(m_centralWidget);
@@ -136,9 +140,21 @@ void MainWindow::setupControlPanel()
     m_emergencyStopBtn = new QPushButton("紧急停止");
     m_emergencyStopBtn->setStyleSheet("QPushButton { background-color: #ff4444; color: white; font-weight: bold; }");
     
+    // 仿真模式复选框
+    m_simulationModeCheckBox = new QCheckBox("仿真模式");
+    m_simulationModeCheckBox->setToolTip("启用仿真模式，可在不连接真实机器人的情况下进行操作");
+    
     connLayout->addWidget(m_connectBtn);
     connLayout->addWidget(m_disconnectBtn);
     connLayout->addWidget(m_emergencyStopBtn);
+    
+    // 添加分隔线
+    QFrame *line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    connLayout->addWidget(line);
+    
+    connLayout->addWidget(m_simulationModeCheckBox);
     
     // 位置控制组
     QGroupBox *positionGroup = new QGroupBox("位置控制");
@@ -196,6 +212,7 @@ void MainWindow::setupControlPanel()
     connect(m_loadPositionBtn, &QPushButton::clicked, this, &MainWindow::loadPosition);
     connect(m_enableAllBtn, &QPushButton::clicked, this, &MainWindow::enableAllJoints);
     connect(m_disableAllBtn, &QPushButton::clicked, this, &MainWindow::disableAllJoints);
+    connect(m_simulationModeCheckBox, &QCheckBox::toggled, this, &MainWindow::toggleSimulationMode);
     
     m_mainSplitter->addWidget(controlWidget);
 }
@@ -399,6 +416,9 @@ void MainWindow::updateRobotStatus()
         
         // 更新运动状态显示
         updateMotionStatusDisplay();
+        
+        // 更新渲染窗口
+        updateRenderWindow();
     }
 }
 
@@ -531,4 +551,149 @@ void MainWindow::updateMotionStatusDisplay()
         motionStartTime = QTime::currentTime();
         m_motionTimeLabel->setText("运动时间: 00:00");
     }
+}
+
+void MainWindow::setupRenderWindow()
+{
+    // 创建渲染窗口容器
+    m_renderWidget = new QWidget;
+    QVBoxLayout *renderLayout = new QVBoxLayout(m_renderWidget);
+    
+    // 创建标题标签
+    QLabel *titleLabel = new QLabel("机器人3D视图");
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setStyleSheet("font-weight: bold; font-size: 14px; padding: 5px;");
+    
+    // 创建图形视图和场景
+    m_renderScene = new QGraphicsScene(this);
+    m_renderView = new QGraphicsView(m_renderScene);
+    
+    // 设置渲染视图属性
+    m_renderView->setMinimumSize(400, 300);
+    m_renderView->setStyleSheet("background-color: #1a1a1a; border: 2px solid #333333;");
+    m_renderView->setRenderHint(QPainter::Antialiasing);
+    
+    // 设置场景大小
+    m_renderScene->setSceneRect(-200, -150, 400, 300);
+    
+    // 添加一些基本的3D坐标轴指示
+    QPen axisPen(Qt::white, 2);
+    
+    // X轴 (红色)
+    QPen xAxisPen(Qt::red, 3);
+    m_renderScene->addLine(-180, 0, -130, 0, xAxisPen);
+    QGraphicsTextItem *xText = m_renderScene->addText("X", QFont("Arial", 10));
+    xText->setPos(-125, -15);
+    xText->setDefaultTextColor(Qt::red);
+    
+    // Y轴 (绿色)
+    QPen yAxisPen(Qt::green, 3);
+    m_renderScene->addLine(-180, 0, -180, -50, yAxisPen);
+    QGraphicsTextItem *yText = m_renderScene->addText("Y", QFont("Arial", 10));
+    yText->setPos(-190, -60);
+    yText->setDefaultTextColor(Qt::green);
+    
+    // Z轴 (蓝色)
+    QPen zAxisPen(Qt::blue, 3);
+    m_renderScene->addLine(-180, 0, -160, -20, zAxisPen);
+    QGraphicsTextItem *zText = m_renderScene->addText("Z", QFont("Arial", 10));
+    zText->setPos(-155, -35);
+    zText->setDefaultTextColor(Qt::blue);
+    
+    // 添加网格
+    QPen gridPen(QColor(64, 64, 64), 1);
+    for (int i = -200; i <= 200; i += 20) {
+        m_renderScene->addLine(i, -150, i, 150, gridPen);
+        m_renderScene->addLine(-200, i, 200, i, gridPen);
+    }
+    
+    // 添加中心提示文本
+    QGraphicsTextItem *centerText = m_renderScene->addText("机器人3D模型渲染区域\n(开发中...)", QFont("Arial", 12));
+    centerText->setDefaultTextColor(Qt::white);
+    centerText->setPos(-80, -10);
+    
+    // 创建状态标签
+    m_renderStatusLabel = new QLabel("渲染状态: 就绪");
+    m_renderStatusLabel->setStyleSheet("color: #2E8B57; font-weight: bold;");
+    
+    // 添加到布局
+    renderLayout->addWidget(titleLabel);
+    renderLayout->addWidget(m_renderView);
+    renderLayout->addWidget(m_renderStatusLabel);
+    
+    // 将渲染窗口添加到主分割器的左侧（与关节控制一起）
+    // 创建左侧分割器
+    QSplitter *leftSplitter = new QSplitter(Qt::Vertical);
+    
+    // 从主分割器中取出关节控制区域
+    QWidget *jointControlWidget = m_mainSplitter->widget(0);
+    if (jointControlWidget) {
+        m_mainSplitter->replaceWidget(0, leftSplitter);
+        leftSplitter->addWidget(jointControlWidget);
+        leftSplitter->addWidget(m_renderWidget);
+        
+        // 设置左侧分割器比例 (关节控制:渲染窗口 = 3:2)
+        leftSplitter->setSizes({600, 400});
+    }
+}
+
+void MainWindow::updateRenderWindow()
+{
+    if (!m_renderScene) return;
+    
+    // 更新渲染状态
+    if (m_isSimulationMode) {
+        m_renderStatusLabel->setText("渲染状态: 仿真模式");
+        m_renderStatusLabel->setStyleSheet("color: #FF8C00; font-weight: bold;");
+    } else if (m_robotController && m_robotController->isConnected()) {
+        m_renderStatusLabel->setText("渲染状态: 实时同步");
+        m_renderStatusLabel->setStyleSheet("color: #2E8B57; font-weight: bold;");
+    } else {
+        m_renderStatusLabel->setText("渲染状态: 离线");
+        m_renderStatusLabel->setStyleSheet("color: #DC143C; font-weight: bold;");
+    }
+    
+    // TODO: 在这里添加实际的机器人模型渲染逻辑
+    // 根据关节角度更新机器人姿态
+    // 这里可以集成OpenGL或其他3D渲染库
+}
+
+void MainWindow::toggleSimulationMode(bool enabled)
+{
+    m_isSimulationMode = enabled;
+    
+    if (enabled) {
+        // 启用仿真模式
+        m_logTextEdit->append(QString("[%1] 仿真模式已启用")
+            .arg(QDateTime::currentDateTime().toString("hh:mm:ss")));
+        
+        // 在仿真模式下，允许关节控制即使没有连接机器人
+        for (auto *jointControl : m_jointControls) {
+            jointControl->setEnabled(true);
+        }
+        
+        // 更新按钮状态
+        m_connectBtn->setEnabled(false);
+        m_disconnectBtn->setEnabled(false);
+        
+    } else {
+        // 禁用仿真模式
+        m_logTextEdit->append(QString("[%1] 仿真模式已禁用")
+            .arg(QDateTime::currentDateTime().toString("hh:mm:ss")));
+        
+        // 恢复正常的连接状态控制
+        bool isConnected = m_robotController && m_robotController->isConnected();
+        m_connectBtn->setEnabled(!isConnected);
+        m_disconnectBtn->setEnabled(isConnected);
+        
+        // 如果没有连接机器人，禁用关节控制
+        if (!isConnected) {
+            for (auto *jointControl : m_jointControls) {
+                jointControl->setEnabled(false);
+            }
+        }
+    }
+    
+    // 更新渲染窗口
+    updateRenderWindow();
 }
